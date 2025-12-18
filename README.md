@@ -32,14 +32,14 @@ After scanning, it offers to automatically:
 ### One-liner Install & Run
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/intruder-hunter/main/intruder-hunter.sh -o intruder-hunter.sh && sudo bash intruder-hunter.sh
+curl -fsSL https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter.sh -o intruder-hunter.sh && sudo bash intruder-hunter.sh
 ```
 
 ### Manual Install
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/intruder-hunter.git
+git clone https://github.com/creativeprofit22/intruder-hunter.git
 cd intruder-hunter
 
 # Run the script
@@ -145,7 +145,7 @@ Want an AI security expert to guide you through the process? Use [Claude Code](h
 
 ```bash
 # Clone the repo
-git clone https://github.com/reaver47/intruder-hunter.git
+git clone https://github.com/creativeprofit22/intruder-hunter.git
 cd intruder-hunter
 
 # Open with Claude Code

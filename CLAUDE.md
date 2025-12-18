@@ -21,7 +21,7 @@ sudo ./intruder-hunter.sh
 Or if they haven't cloned yet:
 
 ```bash
-git clone https://github.com/reaver47/intruder-hunter.git
+git clone https://github.com/creativeprofit22/intruder-hunter.git
 cd intruder-hunter
 sudo ./intruder-hunter.sh
 ```
