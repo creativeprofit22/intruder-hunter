@@ -1,8 +1,8 @@
 # Intruder Hunter
 
-**Linux Security Diagnostic & Hardening Tool**
+**Cross-Platform Security Diagnostic & Hardening Tool**
 
-A beginner-friendly bash script that scans your Linux system for intruders, malware, and vulnerabilities - then offers to fix what it finds.
+Beginner-friendly scripts that scan your **Linux** and **Windows** systems for intruders, malware, and vulnerabilities - then offer to fix what they find.
 
 ```
   ___       _                  _             _   _             _
@@ -29,36 +29,64 @@ After scanning, it offers to automatically:
 
 ## Quick Start
 
-### One-liner Install & Run
+### Linux / WSL2
+
+**One-liner Install & Run:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter.sh -o intruder-hunter.sh && sudo bash intruder-hunter.sh
 ```
 
-### Manual Install
+**Manual Install:**
 
 ```bash
-# Clone the repo
 git clone https://github.com/creativeprofit22/intruder-hunter.git
 cd intruder-hunter
-
-# Run the script
 sudo ./intruder-hunter.sh
 ```
 
+### Windows
+
+**One-liner (Run as Administrator in PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter.ps1 -OutFile intruder-hunter.ps1; .\intruder-hunter.ps1
+```
+
+**Manual Install:**
+
+```powershell
+# Download the script
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter.ps1" -OutFile "intruder-hunter.ps1"
+
+# Run as Administrator
+.\intruder-hunter.ps1
+```
+
+> **Note:** Right-click PowerShell and select "Run as Administrator" before running.
+
 ## Requirements
 
-- Linux (Ubuntu/Debian recommended, works on most distros)
+### Linux
+- Ubuntu/Debian (or most distros)
 - Root access (sudo)
 - Bash 4.0+
+
+### Windows
+- Windows 10/11
+- PowerShell 5.1+ (built-in)
+- Administrator privileges
 
 **Works great on:**
 - Ubuntu 20.04 / 22.04 / 24.04
 - Debian 10 / 11 / 12
 - WSL2 (Windows Subsystem for Linux)
-- Most Debian-based distros
+- Windows 10 / 11
+- Windows Server 2016+
 
 ## What It Checks
+
+### Linux
 
 | Category | Checks Performed |
 |----------|------------------|
@@ -71,6 +99,19 @@ sudo ./intruder-hunter.sh
 | **Updates** | Pending security patches |
 | **Firewall** | UFW status |
 | **Logs** | Failed login attempts, recent logins |
+
+### Windows
+
+| Category | Checks Performed |
+|----------|------------------|
+| **Processes** | Crypto miners, processes in Temp folders, high CPU usage |
+| **Network** | Listening ports, backdoor port detection, active connections |
+| **Users** | Hidden accounts, administrator group members, disabled accounts |
+| **Defender** | AV status, real-time protection, threat detections, scan age |
+| **Malware** | PUPs (adware), suspicious services, suspicious startup entries |
+| **Tasks** | Scheduled tasks running scripts from unusual locations |
+| **Vulnerabilities** | UAC status, Remote Desktop, SMBv1, pending updates |
+| **Firewall** | Windows Firewall status (all profiles) |
 
 ## Sample Output
 
@@ -131,11 +172,13 @@ A: Warnings are informational (e.g., "SSH allows root login" when SSH isn't even
 
 PRs welcome! Ideas for improvement:
 
+- [x] Windows support (PowerShell)
 - [ ] Support for RHEL/CentOS (yum/dnf, firewalld)
+- [ ] macOS support
 - [ ] JSON output format
 - [ ] Email report option
-- [ ] Scheduled scans via cron
-- [ ] More rootkit signatures
+- [ ] Scheduled scans via cron/Task Scheduler
+- [ ] More rootkit/malware signatures
 
 ## Using with Claude Code (AI-Guided Mode)
 
