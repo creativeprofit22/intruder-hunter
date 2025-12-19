@@ -1,6 +1,6 @@
 # Intruder Hunter - Claude Code Guide
 
-You are helping a user secure their Linux system using the Intruder Hunter toolkit.
+You are helping a user secure their Linux, macOS, or Windows system using the Intruder Hunter toolkit.
 
 ## Your Role
 
@@ -12,10 +12,21 @@ Act as a security expert guiding the user through:
 
 ## Quick Start
 
-If the user just arrived, guide them with:
+Detect the user's OS and guide them with the appropriate script:
 
+### Linux / WSL2
 ```bash
 sudo ./intruder-hunter.sh
+```
+
+### macOS
+```bash
+sudo ./intruder-hunter-macos.sh
+```
+
+### Windows (PowerShell as Administrator)
+```powershell
+.\intruder-hunter.ps1
 ```
 
 Or if they haven't cloned yet:
@@ -23,7 +34,12 @@ Or if they haven't cloned yet:
 ```bash
 git clone https://github.com/creativeprofit22/intruder-hunter.git
 cd intruder-hunter
+
+# Linux/WSL2
 sudo ./intruder-hunter.sh
+
+# macOS
+sudo ./intruder-hunter-macos.sh
 ```
 
 ## What the Script Does
@@ -60,6 +76,7 @@ Generally yes for:
 
 If the user wants deeper analysis beyond the script:
 
+### Linux
 ```bash
 # Check for unusual processes
 ps aux --sort=-%cpu | head -20
@@ -92,8 +109,51 @@ apt list --upgradable
 sudo ufw status verbose
 ```
 
+### macOS
+```bash
+# Check for unusual processes
+ps aux -r | head -20
+
+# Check network connections
+lsof -iTCP -sTCP:LISTEN -n -P
+netstat -an | grep ESTABLISHED
+
+# Check admin users
+dscl . -read /Groups/admin GroupMembership
+
+# Check all users
+dscl . -list /Users
+
+# Check hidden users (starting with .)
+dscl . -list /Users | grep '^\.'
+
+# Check cron jobs
+crontab -l
+
+# Check Launch Agents/Daemons (potential malware locations)
+ls -la ~/Library/LaunchAgents/
+ls -la /Library/LaunchAgents/
+ls -la /Library/LaunchDaemons/
+
+# Check security settings
+csrutil status           # SIP
+spctl --status           # Gatekeeper
+fdesetup status          # FileVault
+/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
+
+# Check remote access
+systemsetup -getremotelogin
+
+# Check pending updates
+softwareupdate -l
+
+# Check XProtect version
+defaults read /System/Library/CoreServices/XProtect.bundle/Contents/Resources/XProtect.meta.plist Version
+```
+
 ## Hardening Commands
 
+### Linux
 ```bash
 # Apply updates
 sudo apt update && sudo apt upgrade -y
@@ -113,6 +173,36 @@ sudo sed -i 's|WEB_CMD="/bin/false"|WEB_CMD=""|g' /etc/rkhunter.conf
 
 # Enable auto-updates
 sudo apt install unattended-upgrades -y
+```
+
+### macOS
+```bash
+# Apply software updates
+sudo softwareupdate -ia
+
+# Enable firewall
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
+
+# Enable FileVault disk encryption
+sudo fdesetup enable
+
+# Disable remote login (SSH)
+sudo systemsetup -setremotelogin off
+
+# Check SIP status (should be enabled)
+csrutil status
+
+# Check Gatekeeper
+spctl --status
+
+# Trigger XProtect scan
+sudo /usr/libexec/XProtectService --scan
+
+# Check for suspicious LaunchAgents
+ls -la ~/Library/LaunchAgents/
+ls -la /Library/LaunchAgents/
+ls -la /Library/LaunchDaemons/
 ```
 
 ## Tone

@@ -2,7 +2,7 @@
 
 **Cross-Platform Security Diagnostic & Hardening Tool**
 
-Beginner-friendly scripts that scan your **Linux** and **Windows** systems for intruders, malware, and vulnerabilities - then offer to fix what they find.
+Beginner-friendly scripts that scan your **Linux**, **macOS**, and **Windows** systems for intruders, malware, and vulnerabilities - then offer to fix what they find.
 
 ```
   ___       _                  _             _   _             _
@@ -45,6 +45,22 @@ cd intruder-hunter
 sudo ./intruder-hunter.sh
 ```
 
+### macOS
+
+**One-liner Install & Run:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter-macos.sh -o intruder-hunter-macos.sh && sudo bash intruder-hunter-macos.sh
+```
+
+**Manual Install:**
+
+```bash
+git clone https://github.com/creativeprofit22/intruder-hunter.git
+cd intruder-hunter
+sudo ./intruder-hunter-macos.sh
+```
+
 ### Windows
 
 **One-liner (Run as Administrator in PowerShell):**
@@ -72,6 +88,11 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/creativeprofit22/intru
 - Root access (sudo)
 - Bash 4.0+
 
+### macOS
+- macOS 10.15 (Catalina) or later
+- Admin access (sudo)
+- Bash or Zsh (built-in)
+
 ### Windows
 - Windows 10/11
 - PowerShell 5.1+ (built-in)
@@ -81,6 +102,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/creativeprofit22/intru
 - Ubuntu 20.04 / 22.04 / 24.04
 - Debian 10 / 11 / 12
 - WSL2 (Windows Subsystem for Linux)
+- macOS Catalina / Big Sur / Monterey / Ventura / Sonoma / Sequoia
 - Windows 10 / 11
 - Windows Server 2016+
 
@@ -99,6 +121,19 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/creativeprofit22/intru
 | **Updates** | Pending security patches |
 | **Firewall** | UFW status |
 | **Logs** | Failed login attempts, recent logins |
+
+### macOS
+
+| Category | Checks Performed |
+|----------|------------------|
+| **Processes** | Crypto miners, processes in /tmp, high CPU usage |
+| **Network** | Listening ports, suspicious connections, active connections |
+| **Users** | Admin users, hidden accounts, SSH authorized keys |
+| **Security** | SIP status, Gatekeeper, FileVault encryption, firewall |
+| **Malware** | Launch Agents/Daemons, known malware paths, cron jobs |
+| **Remote Access** | SSH, Screen Sharing, Apple Remote Desktop |
+| **Vulnerabilities** | Pending updates, XProtect version, PATH security |
+| **Logs** | Authentication failures, sudo usage, kernel panics |
 
 ### Windows
 
@@ -146,13 +181,15 @@ If you choose **yes**, the script will:
 
 If you choose **no**, it shows the manual commands you can run later.
 
-## Log File
+## Log Files
 
 All scan results are saved to:
 
-```
-/var/log/intruder-hunter.log
-```
+| Platform | Log Location |
+|----------|--------------|
+| Linux | `/var/log/intruder-hunter.log` |
+| macOS | `/var/log/intruder-hunter-macos.log` |
+| Windows | Current directory (console output) |
 
 ## FAQ
 
@@ -173,8 +210,8 @@ A: Warnings are informational (e.g., "SSH allows root login" when SSH isn't even
 PRs welcome! Ideas for improvement:
 
 - [x] Windows support (PowerShell)
+- [x] macOS support
 - [ ] Support for RHEL/CentOS (yum/dnf, firewalld)
-- [ ] macOS support
 - [ ] JSON output format
 - [ ] Email report option
 - [ ] Scheduled scans via cron/Task Scheduler
