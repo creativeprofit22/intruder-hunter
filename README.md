@@ -307,7 +307,7 @@ make verify
 # or: bash scripts/verify.sh
 ```
 
-The verifier runs Bash syntax checks, uses ShellCheck when installed, checks Bash formatting with `shfmt -d -i 4 -ln bash` when `shfmt` is installed, parses PowerShell files when `pwsh` is installed, runs PSScriptAnalyzer and Pester when their PowerShell modules are installed, and runs Go format, vet, lint, and test checks when Go tooling is available. Missing optional tools such as ShellCheck, `shfmt`, `pwsh`, PSScriptAnalyzer, Pester, `staticcheck`, and `golangci-lint` are reported as skipped checks instead of failures.
+The verifier runs Bash syntax checks, uses ShellCheck when installed, checks Bash formatting with `shfmt -d -i 4 -ln bash` when `shfmt` is installed, runs Bats smoke/unit tests from `test/*.bats` when `bats` is installed, parses PowerShell files when `pwsh` is installed, runs PSScriptAnalyzer and Pester when their PowerShell modules are installed, and runs Go format, vet, lint, and test checks when Go tooling is available. Missing optional tools such as ShellCheck, `shfmt`, `bats`, `pwsh`, PSScriptAnalyzer, Pester, `staticcheck`, and `golangci-lint` are reported as skipped checks instead of failures.
 
 Dedicated lint checks are available for all active languages:
 
@@ -325,6 +325,12 @@ make format-check
 # or directly:
 gofmt -l .
 shfmt -d -i 4 -ln bash intruder-hunter.sh intruder-hunter-macos.sh lib/linux/*.sh lib/macos/*.sh scripts/*.sh
+```
+
+Bash-only smoke/unit tests are available through the optional target below. It runs `bats test/*.bats` when Bats is installed and otherwise reports a skip.
+
+```bash
+make bash-tests
 ```
 
 PowerShell-only checks are available through the optional target below. It performs the parser checks and, when available, runs `Invoke-ScriptAnalyzer` with `PSScriptAnalyzerSettings.psd1` plus `Invoke-Pester -Path './test' -EnableExit` for `*.Tests.ps1` files.
@@ -349,7 +355,7 @@ make golangci-lint
 # or, when installed: golangci-lint run ./...
 ```
 
-The repository includes `PSScriptAnalyzerSettings.psd1` for optional PowerShell linting and `test/PowerShell.Tests.ps1` for additive Pester coverage of the Windows script sources. It also includes a `.golangci.yml` config using golangci-lint's current `version: "2"` format and the standard linter set, including `govet` and `staticcheck`.
+The repository includes `test/common_helpers.bats` for additive, non-root Bash helper coverage, `PSScriptAnalyzerSettings.psd1` for optional PowerShell linting, and `test/PowerShell.Tests.ps1` for additive Pester coverage of the Windows script sources. It also includes a `.golangci.yml` config using golangci-lint's current `version: "2"` format and the standard linter set, including `govet` and `staticcheck`.
 
 ## Maintainer release artifacts
 

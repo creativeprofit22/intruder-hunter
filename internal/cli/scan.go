@@ -7,6 +7,7 @@ import (
 
 	"github.com/creativeprofit22/intruder-hunter/internal/check"
 	"github.com/creativeprofit22/intruder-hunter/internal/output"
+	linuxchecks "github.com/creativeprofit22/intruder-hunter/internal/platform/linux"
 	"github.com/creativeprofit22/intruder-hunter/internal/report"
 	"github.com/creativeprofit22/intruder-hunter/internal/scan"
 	"github.com/spf13/cobra"
@@ -29,7 +30,7 @@ func newScanCommand(opts *Options) *cobra.Command {
 
 			registry := opts.ScanRegistry
 			if registry == nil {
-				registry = check.MustRegistry()
+				registry = defaultScanRegistry()
 			}
 
 			result, err := scan.Run(cmd.Context(), scan.Options{
@@ -65,6 +66,10 @@ func newScanCommand(opts *Options) *cobra.Command {
 	cmd.Flags().DurationVar(&timeout, "timeout", 0, "cancel the scan after this duration, for example 30s or 5m")
 
 	return cmd
+}
+
+func defaultScanRegistry() *check.Registry {
+	return check.MustRegistry(linuxchecks.Checks()...)
 }
 
 func renderScanText(writer io.Writer, result *scan.Result) error {

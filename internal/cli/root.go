@@ -8,6 +8,9 @@ import (
 
 	"github.com/creativeprofit22/intruder-hunter/internal/check"
 	"github.com/creativeprofit22/intruder-hunter/internal/output"
+	linuxchecks "github.com/creativeprofit22/intruder-hunter/internal/platform/linux"
+	macoschecks "github.com/creativeprofit22/intruder-hunter/internal/platform/macos"
+	windowschecks "github.com/creativeprofit22/intruder-hunter/internal/platform/windows"
 	"github.com/creativeprofit22/intruder-hunter/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -31,6 +34,11 @@ func NewRootCommand(opts Options) *cobra.Command {
 	}
 	if config.Now == nil {
 		config.Now = time.Now
+	}
+	if config.ScanRegistry == nil {
+		checks := append(linuxchecks.Checks(), macoschecks.Checks()...)
+		checks = append(checks, windowschecks.Checks()...)
+		config.ScanRegistry = check.MustRegistry(checks...)
 	}
 
 	cmd := &cobra.Command{

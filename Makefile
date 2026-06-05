@@ -1,4 +1,4 @@
-.PHONY: test verify format-check lint vet staticcheck golangci-lint powershell-checks build build-go release release-go bundle clean
+.PHONY: test verify format-check lint vet staticcheck golangci-lint bash-tests powershell-checks build build-go release release-go bundle clean
 
 GO ?= go
 GOFMT ?= gofmt
@@ -49,6 +49,9 @@ lint:
 
 verify:
 	$(BASH) scripts/verify.sh
+
+bash-tests:
+	$(BASH) scripts/verify.sh --bash-tests-only
 
 powershell-checks:
 	$(BASH) scripts/verify.sh --powershell-only

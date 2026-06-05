@@ -556,6 +556,10 @@ main() {
             run_powershell_checks
             return $?
             ;;
+        --bash-tests-only)
+            run_bash_tests
+            return $?
+            ;;
         --lint-only)
             run_all_lint_checks
             return $?
@@ -565,7 +569,7 @@ main() {
             return $?
             ;;
         *)
-            echo "Usage: $(basename "$0") [--lint-only|--powershell-only]" >&2
+            echo "Usage: $(basename "$0") [--lint-only|--powershell-only|--bash-tests-only]" >&2
             return 2
             ;;
     esac
