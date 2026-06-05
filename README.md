@@ -1,8 +1,8 @@
 # Intruder Hunter
 
-**Cross-Platform Security Diagnostic & Hardening Tool**
+**Beginner-friendly security diagnostics for Linux, macOS, and Windows**
 
-Beginner-friendly scripts that scan your **Linux**, **macOS**, and **Windows** systems for intruders, malware, and vulnerabilities - then offer to fix what they find.
+Intruder Hunter helps you review a computer for common signs of compromise, risky exposure, and security hygiene gaps. The repository now contains a Go CLI foundation plus retained platform scripts while native scan checks continue to migrate.
 
 ```
   ___       _                  _             _   _             _
@@ -12,32 +12,101 @@ Beginner-friendly scripts that scan your **Linux**, **macOS**, and **Windows** s
  |___|_| |_|\__|_|   \__,_|\__,_|\___|_|    |_| |_|\__,_|_| |_|\__\___|_|
 ```
 
-## Features
+## Status at a glance
 
-- **Process Analysis** - Detects crypto miners, suspicious processes running from /tmp
-- **Network Analysis** - Shows listening ports and active connections
-- **User Audit** - Checks for rogue accounts, empty passwords, SSH keys, sudo access
-- **Malware Detection** - Scans for rootkit indicators, suspicious cron jobs, unusual SUID binaries
-- **Vulnerability Assessment** - Checks pending updates, firewall status, file permissions
-- **Log Analysis** - Reviews authentication logs for brute force attempts
+- **Go CLI:** buildable on Linux, macOS, and Windows. It implements `version`, read-only `doctor`, JSON/text output, first-pass `scan` orchestration, and a guarded `legacy` script bridge.
+- **Native Go scan:** the command now runs any registered Go-native checks for the current platform and safely produces an empty report when no checks are registered yet. Full diagnostic parity is **not complete**.
+- **Full diagnostics today:** use the retained Bash/PowerShell scripts directly, or launch them through the Go CLI `legacy` bridge from a repository checkout.
+- **Reports:** Go scan output can be text or JSON, can write `--report-json PATH`, and writes private `.intruder-hunter/` snapshots by default unless `--no-snapshot` is set.
 
-After scanning, it offers to automatically:
-- Apply security updates
-- Enable UFW firewall
-- Run rootkit scanners (rkhunter + chkrootkit)
-- Configure automatic updates
+## Install and build
 
-## Quick Start
-
-### Linux / WSL2
-
-**One-liner Install & Run:**
+### Build from source
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter.sh -o intruder-hunter.sh && sudo bash intruder-hunter.sh
+git clone https://github.com/creativeprofit22/intruder-hunter.git
+cd intruder-hunter
+
+# Requires Go 1.26+ from go.mod
+go run ./cmd/intruder-hunter version
+go run ./cmd/intruder-hunter doctor
+
+# Build a host-platform binary in dist/
+make build-go
+# or override embedded version metadata:
+VERSION=1.2.3 COMMIT=abc123 make build-go
 ```
 
-**Manual Install:**
+Maintainers can build release binaries for Linux, macOS, and Windows on `amd64` and `arm64`:
+
+```bash
+make release-go
+# or: bash scripts/release-go.sh
+# VERSION and COMMIT environment variables override the Git-derived metadata.
+```
+
+Generated binaries are written to `dist/` as names such as `intruder-hunter-linux-amd64`, `intruder-hunter-darwin-arm64`, and `intruder-hunter-windows-amd64.exe`.
+
+### Run a built binary
+
+```bash
+./dist/intruder-hunter-linux-amd64 version
+./dist/intruder-hunter-linux-amd64 doctor
+./dist/intruder-hunter-linux-amd64 doctor --output json
+```
+
+On Windows, run the `.exe` from PowerShell:
+
+```powershell
+.\dist\intruder-hunter-windows-amd64.exe version
+.\dist\intruder-hunter-windows-amd64.exe doctor --output json
+```
+
+## Go CLI usage
+
+| Command | Current behavior |
+|---------|------------------|
+| `intruder-hunter version` | Prints the CLI version, commit, OS, and architecture. Supports `--output json`. |
+| `intruder-hunter doctor` | Read-only prerequisite check for platform, admin/root capability, Go runtime/tooling, and platform tools. Supports `--output json`. |
+| `intruder-hunter scan` | Runs registered Go-native checks for the current platform, writes a snapshot by default, and supports `--output`, `--report-json`, `--no-snapshot`, and `--timeout`. Empty reports are expected until platform checks are implemented. |
+| `intruder-hunter legacy linux-script` | Runs `intruder-hunter.sh` on Linux after checking the current platform and root/admin status. |
+| `intruder-hunter legacy macos-script` | Runs `intruder-hunter-macos.sh` on macOS after checking the current platform and root/admin status. |
+| `intruder-hunter legacy windows-script` | Runs `intruder-hunter.ps1` on Windows after checking Administrator status. |
+
+Examples:
+
+```bash
+# Human-readable output is the default
+go run ./cmd/intruder-hunter version
+go run ./cmd/intruder-hunter doctor
+
+# Machine-readable CLI envelope
+go run ./cmd/intruder-hunter version --output json
+go run ./cmd/intruder-hunter doctor --output json
+
+# Run the current Go-native scan orchestrator
+go run ./cmd/intruder-hunter scan
+
+# Machine-readable scan output and an additional report file
+go run ./cmd/intruder-hunter scan --output json --report-json scan-report.json
+
+# Skip local snapshot files or bound runtime
+go run ./cmd/intruder-hunter scan --no-snapshot --timeout 2m
+```
+
+The global output flag accepts only `text` and `json`:
+
+```bash
+go run ./cmd/intruder-hunter doctor --output json
+# shorthand:
+go run ./cmd/intruder-hunter doctor -o json
+```
+
+## Full scan fallback with legacy scripts
+
+Until native Go scan checks are complete, use the retained scripts for real host diagnostics.
+
+### Linux / WSL2
 
 ```bash
 git clone https://github.com/creativeprofit22/intruder-hunter.git
@@ -45,15 +114,13 @@ cd intruder-hunter
 sudo ./intruder-hunter.sh
 ```
 
-### macOS
-
-**One-liner Install & Run:**
+Or through the Go bridge from a checkout:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter-macos.sh -o intruder-hunter-macos.sh && sudo bash intruder-hunter-macos.sh
+sudo go run ./cmd/intruder-hunter legacy linux-script
 ```
 
-**Manual Install:**
+### macOS
 
 ```bash
 git clone https://github.com/creativeprofit22/intruder-hunter.git
@@ -61,205 +128,291 @@ cd intruder-hunter
 sudo ./intruder-hunter-macos.sh
 ```
 
-### Windows
+Or through the Go bridge from a checkout:
 
-**One-liner (Run as Administrator in PowerShell):**
-
-```powershell
-irm https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter.ps1 -OutFile intruder-hunter.ps1; .\intruder-hunter.ps1
+```bash
+sudo go run ./cmd/intruder-hunter legacy macos-script
 ```
 
-**Manual Install:**
+### Windows
+
+Run PowerShell as Administrator:
 
 ```powershell
-# Download the script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/creativeprofit22/intruder-hunter/master/intruder-hunter.ps1" -OutFile "intruder-hunter.ps1"
-
-# Run as Administrator
+git clone https://github.com/creativeprofit22/intruder-hunter.git
+cd intruder-hunter
 .\intruder-hunter.ps1
 ```
 
-> **Note:** Right-click PowerShell and select "Run as Administrator" before running.
+Or through the Go bridge from a checkout:
 
-## Requirements
-
-### Linux
-- Ubuntu/Debian (or most distros)
-- Root access (sudo)
-- Bash 4.0+
-
-### macOS
-- macOS 10.15 (Catalina) or later
-- Admin access (sudo)
-- Bash or Zsh (built-in)
-
-### Windows
-- Windows 10/11
-- PowerShell 5.1+ (built-in)
-- Administrator privileges
-
-**Works great on:**
-- Ubuntu 20.04 / 22.04 / 24.04
-- Debian 10 / 11 / 12
-- WSL2 (Windows Subsystem for Linux)
-- macOS Catalina / Big Sur / Monterey / Ventura / Sonoma / Sequoia
-- Windows 10 / 11
-- Windows Server 2016+
-
-## What It Checks
-
-### Linux
-
-| Category | Checks Performed |
-|----------|------------------|
-| **Processes** | Crypto miners, processes in /tmp, high CPU usage |
-| **Network** | Listening ports, exposed services, active connections |
-| **Users** | UID 0 accounts, empty passwords, sudo group, NOPASSWD entries |
-| **SSH** | Authorized keys, root login, password authentication |
-| **Malware** | LD_PRELOAD hooks, suspicious cron jobs, unusual SUID binaries |
-| **Files** | World-writable /etc files, hidden files in /tmp |
-| **Updates** | Pending security patches |
-| **Firewall** | UFW status |
-| **Logs** | Failed login attempts, recent logins |
-
-### macOS
-
-| Category | Checks Performed |
-|----------|------------------|
-| **Processes** | Crypto miners, processes in /tmp, high CPU usage |
-| **Network** | Listening ports, suspicious connections, active connections |
-| **Users** | Admin users, hidden accounts, SSH authorized keys |
-| **Security** | SIP status, Gatekeeper, FileVault encryption, firewall |
-| **Malware** | Launch Agents/Daemons, known malware paths, cron jobs |
-| **Remote Access** | SSH, Screen Sharing, Apple Remote Desktop |
-| **Vulnerabilities** | Pending updates, XProtect version, PATH security |
-| **Logs** | Authentication failures, sudo usage, kernel panics |
-
-### Windows
-
-| Category | Checks Performed |
-|----------|------------------|
-| **Processes** | Crypto miners, processes in Temp folders, high CPU usage |
-| **Network** | Listening ports, backdoor port detection, active connections |
-| **Users** | Hidden accounts, administrator group members, disabled accounts |
-| **Defender** | AV status, real-time protection, threat detections, scan age |
-| **Malware** | PUPs (adware), suspicious services, suspicious startup entries |
-| **Tasks** | Scheduled tasks running scripts from unusual locations |
-| **Vulnerabilities** | UAC status, Remote Desktop, SMBv1, pending updates |
-| **Firewall** | Windows Firewall status (all profiles) |
-
-## Sample Output
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  SCAN COMPLETE - SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ╔══════════════════════════════════════════════╗
-  ║          SYSTEM APPEARS CLEAN                ║
-  ╚══════════════════════════════════════════════╝
-
-  Results:
-    ✗ Critical issues: 0
-    ! Warnings:        3
+```powershell
+go run ./cmd/intruder-hunter legacy windows-script
 ```
 
-## Hardening Steps
-
-When the scan completes, you'll be asked:
-
-```
-Apply all recommended hardening steps? (y/n):
-```
-
-If you choose **yes**, the script will:
-
-1. **Apply Updates** - `apt update && apt upgrade`
-2. **Enable Firewall** - UFW with deny incoming / allow outgoing
-3. **Run Rootkit Scanners** - rkhunter and chkrootkit
-4. **Configure Auto-Updates** - unattended-upgrades for security patches
-
-If you choose **no**, it shows the manual commands you can run later.
-
-## Log Files
-
-All scan results are saved to:
-
-| Platform | Log Location |
-|----------|--------------|
-| Linux | `/var/log/intruder-hunter.log` |
-| macOS | `/var/log/intruder-hunter-macos.log` |
-| Windows | Current directory (console output) |
-
-## FAQ
-
-**Q: Is this safe to run on production servers?**
-A: The scan itself is read-only and safe. Only apply hardening steps if you understand the changes (firewall rules may affect services).
-
-**Q: Does it work on CentOS/RHEL/Fedora?**
-A: Partially. The scan works, but hardening uses apt/ufw which are Debian-specific. PRs welcome for yum/dnf support!
-
-**Q: Why does it need root?**
-A: To read /etc/shadow, check all user crontabs, scan system directories, and apply fixes.
-
-**Q: I got warnings but no critical issues - am I safe?**
-A: Warnings are informational (e.g., "SSH allows root login" when SSH isn't even running). Review them but don't panic.
-
-## Contributing
-
-PRs welcome! Ideas for improvement:
-
-- [x] Windows support (PowerShell)
-- [x] macOS support
-- [ ] Support for RHEL/CentOS (yum/dnf, firewalld)
-- [ ] JSON output format
-- [ ] Email report option
-- [ ] Scheduled scans via cron/Task Scheduler
-- [ ] More rootkit/malware signatures
-
-## Using with Claude Code (AI-Guided Mode)
-
-Want an AI security expert to guide you through the process? Use [Claude Code](https://claude.ai/code):
-
-### Setup
+If you launch the Go binary outside the repository checkout, pass the checkout path before the script subcommand:
 
 ```bash
-# Clone the repo
-git clone https://github.com/creativeprofit22/intruder-hunter.git
-cd intruder-hunter
-
-# Open with Claude Code
-claude
+sudo intruder-hunter legacy --repo-root /path/to/intruder-hunter linux-script
 ```
 
-### Slash Commands
+The legacy bridge does **not** auto-approve hardening. If a script asks whether to apply fixes, answer only after you understand the changes.
 
-Once inside Claude Code, you can use these commands:
+## Supported platforms
 
-| Command | Description |
-|---------|-------------|
-| `/diagnose` | Full guided security diagnosis with explanations |
-| `/harden` | Step-by-step system hardening with Claude's help |
-| `/quick-scan` | Fast security check without the full script |
+| Area | Linux | macOS | Windows |
+|------|-------|-------|---------|
+| Go `version` | Supported | Supported | Supported |
+| Go `doctor` | Supported prerequisite profile | Supported prerequisite profile | Supported prerequisite profile |
+| Go `scan` | Orchestrator ready; checks still migrating | Orchestrator ready; checks still migrating | Orchestrator ready; checks still migrating |
+| Legacy full scan | Bash script | Bash script | PowerShell script |
+| Best-tested targets | Ubuntu/Debian and WSL2 | macOS 10.15+ | Windows 10/11 and Windows Server 2016+ |
 
-### Or Just Ask
+Linux note: the current script works best on Debian/Ubuntu-style systems. Some scan output works elsewhere, but update and hardening actions still assume tools such as `apt` and `ufw`; RHEL/Fedora, Arch, SUSE, NixOS, and minimal containers may need manual interpretation.
 
-You can also just ask Claude directly:
+## What the legacy scripts check
 
-- *"Is my system compromised?"*
-- *"Help me check for intruders"*
-- *"What do these scan results mean?"*
-- *"Should I be worried about this warning?"*
+### Linux
 
-Claude has full context about this toolkit and will guide you through everything.
+| Category | Checks performed |
+|----------|------------------|
+| Processes | Crypto-miner name hints, processes running from `/tmp`, high CPU usage |
+| Network | Listening ports, exposed SSH, active connections |
+| Users | UID 0 accounts, empty passwords, sudo group, `NOPASSWD` entries, SSH keys |
+| Malware | `LD_PRELOAD` hooks, suspicious cron jobs, unusual SUID binaries |
+| Files | World-writable `/etc` files, hidden files in `/tmp` |
+| Updates | Pending package updates using Debian/Ubuntu-style tools |
+| Firewall | UFW status when available |
+| Logs | Failed login attempts and recent logins |
+
+### macOS
+
+| Category | Checks performed |
+|----------|------------------|
+| Processes | Crypto-miner name hints, processes running from temporary paths, high CPU usage |
+| Network | Listening ports and active connections |
+| Users | Admin users, hidden accounts, SSH authorized keys |
+| Security | SIP, Gatekeeper, FileVault, Application Firewall, remote access |
+| Malware | LaunchAgents/Daemons, known suspicious paths, cron jobs |
+| Vulnerabilities | Pending updates, XProtect/MRT version display, PATH security |
+| Logs | Authentication failures, sudo usage, kernel panic hints |
+
+### Windows
+
+| Category | Checks performed |
+|----------|------------------|
+| Processes | Crypto-miner name hints, Temp-folder processes, high CPU usage |
+| Network | Listening ports, selected backdoor-port hints, active connections |
+| Users | Hidden accounts, administrator group members, disabled accounts |
+| Defender | AV status, real-time protection, known threat detections, scan age |
+| Malware | PUP/adware strings, suspicious services, suspicious startup entries |
+| Tasks | Scheduled tasks running script hosts from unusual locations |
+| Vulnerabilities | UAC, Remote Desktop, SMBv1, pending updates |
+| Firewall | Windows Firewall status for profiles |
+
+## Reports, logs, and snapshots
+
+### Current CLI output
+
+The Go CLI writes text or JSON to stdout. The scan command can also write a normalized report file:
+
+```bash
+go run ./cmd/intruder-hunter doctor --output json > doctor-report.json
+go run ./cmd/intruder-hunter scan --output json --report-json scan-report.json
+```
+
+Implemented JSON commands use a stable envelope with:
+
+- `schema_version`
+- `tool`
+- `platform`
+- `started_at` / `completed_at`
+- `summary`
+- `findings`
+- optional `error`
+
+See [docs/json-reporting.md](docs/json-reporting.md) for the schema and current limitations.
+
+### Legacy script logs
+
+| Platform | Current location |
+|----------|------------------|
+| Linux | `/var/log/intruder-hunter.log` |
+| macOS | `/var/log/intruder-hunter-macos.log` |
+| Windows | Console output from the current PowerShell session |
+
+### Snapshot storage model
+
+The Go scan command writes a private snapshot by default. The layout under the current directory is:
+
+```text
+.intruder-hunter/runs/<utc-timestamp>/metadata.json
+.intruder-hunter/runs/<utc-timestamp>/report.json
+.intruder-hunter/runs/<utc-timestamp>/raw/...
+.intruder-hunter/latest/report.json
+```
+
+Use `intruder-hunter scan --no-snapshot` to skip these files. `.intruder-hunter/` is ignored by git so local diagnostic artifacts are not committed accidentally.
+
+## May 2026 detection model changes
+
+The May 2026 migration added the Go-side model that future native checks will use:
+
+- Shared severity names: `critical`, `warning`, `ok`, and `info`.
+- Structured finding fields: stable ID, platform, module, check name, title, evidence, remediation, references, and metadata.
+- Deterministic report JSON and snapshot helpers.
+- A check registry/context contract for platform-specific Go checks.
+- A read-only `doctor` command that reports prerequisites without changing system settings.
+
+What did **not** change yet: the legacy scripts still contain several script-era detections. They are useful for triage, but they do not replace a full incident-response investigation. See [docs/detection-refresh-audit.md](docs/detection-refresh-audit.md) for the detailed refresh backlog.
+
+Remaining script-era limitations include:
+
+- Miner detection still relies heavily on process names and simple strings.
+- Some network checks still use static suspicious-port lists or do not fully resolve process trust context.
+- Linux update/firewall/hardening checks are still strongest on Debian/Ubuntu with `apt` and `ufw`.
+- macOS LaunchAgent review is still filename/path oriented and does not fully score plist contents, signatures, or all user homes.
+- Windows PUP/miner/persistence checks need richer command-line, signer, registry, service, scheduled-task, and Defender-exclusion context.
+
+## Understanding results and false positives
+
+Treat Intruder Hunter as a guided checklist, not a guarantee that a system is clean.
+
+- **Critical issue:** review promptly. It may indicate compromise, unsafe exposure, or a high-risk configuration.
+- **Warning:** needs context. It can be a real problem, a policy choice, or a normal setting for your environment.
+- **OK/info:** useful inventory, not proof that no attacker exists.
+
+Common false-positive examples:
+
+- WSL2 may not run a traditional syslog daemon.
+- SSH root login can be less relevant if SSH is disabled or blocked by a firewall.
+- Developers often run local web servers on ports like `3000`, `5000`, `8000`, `8080`, or `9000`.
+- Security labs may intentionally keep miner samples, malware strings, or suspicious filenames.
+- Enterprise Macs and Windows PCs may have MDM/GPO-managed security settings that users cannot change locally.
+
+If you are worried about a finding, collect the exact evidence shown by the tool, identify whether the program/account/service is expected, and avoid deleting files until you understand what owns them.
+
+## Hardening steps
+
+Some legacy scripts offer hardening after scanning. Typical actions include applying updates, enabling a firewall, running rootkit scanners, configuring automatic updates, enabling macOS firewall/stealth mode, enabling FileVault, or opening Windows security settings.
+
+These actions are usually helpful on personal machines, but they can affect production servers, remote access, VPNs, backups, or managed corporate devices. Use a maintenance window and backups for important systems, and do not enable a firewall until you know which ports must stay reachable.
+
+## Developer verification
+
+Run the local non-destructive verifier before opening a PR or publishing release artifacts:
+
+```bash
+make verify
+# or: bash scripts/verify.sh
+```
+
+The verifier runs Bash syntax checks, uses ShellCheck when installed, checks Bash formatting with `shfmt -d -i 4 -ln bash` when `shfmt` is installed, parses PowerShell files when `pwsh` is installed, runs PSScriptAnalyzer and Pester when their PowerShell modules are installed, and runs Go format, vet, lint, and test checks when Go tooling is available. Missing optional tools such as ShellCheck, `shfmt`, `pwsh`, PSScriptAnalyzer, Pester, `staticcheck`, and `golangci-lint` are reported as skipped checks instead of failures.
+
+Dedicated lint checks are available for all active languages:
+
+```bash
+make lint
+# or: bash scripts/verify.sh --lint-only
+```
+
+`make lint` runs Bash syntax checks plus ShellCheck when installed, PowerShell parser checks plus PSScriptAnalyzer when `pwsh` and the module are installed, and Go `vet`, `staticcheck`, and `golangci-lint run ./...` when available. It does not run format checks or test suites.
+
+Dedicated format checks are available without rewriting files:
+
+```bash
+make format-check
+# or directly:
+gofmt -l .
+shfmt -d -i 4 -ln bash intruder-hunter.sh intruder-hunter-macos.sh lib/linux/*.sh lib/macos/*.sh scripts/*.sh
+```
+
+PowerShell-only checks are available through the optional target below. It performs the parser checks and, when available, runs `Invoke-ScriptAnalyzer` with `PSScriptAnalyzerSettings.psd1` plus `Invoke-Pester -Path './test' -EnableExit` for `*.Tests.ps1` files.
+
+```bash
+make powershell-checks
+```
+
+Go-only checks are available through these commands:
+
+```bash
+make test
+# or: go test ./...
+
+make vet
+# or: go vet ./...
+
+make staticcheck
+# or, when installed: staticcheck ./...
+
+make golangci-lint
+# or, when installed: golangci-lint run ./...
+```
+
+The repository includes `PSScriptAnalyzerSettings.psd1` for optional PowerShell linting and `test/PowerShell.Tests.ps1` for additive Pester coverage of the Windows script sources. It also includes a `.golangci.yml` config using golangci-lint's current `version: "2"` format and the standard linter set, including `govet` and `staticcheck`.
+
+## Maintainer release artifacts
+
+Build standalone Linux/macOS/Windows script bundles:
+
+```bash
+make bundle
+# or: bash scripts/bundle.sh
+bash -n dist/intruder-hunter.sh dist/intruder-hunter-macos.sh
+# If pwsh is installed, scripts/verify.sh also parser-checks dist/intruder-hunter.ps1.
+```
+
+Build Go CLI release binaries:
+
+```bash
+make release-go
+# or: bash scripts/release-go.sh
+# VERSION and COMMIT environment variables override the Git-derived metadata.
+```
+
+Build both standalone scripts and Go CLI binaries:
+
+```bash
+make release
+```
+
+Generated files are written to `dist/` and intentionally ignored by git.
+
+## Project structure
+
+| Path | Purpose |
+|------|---------|
+| `cmd/intruder-hunter/` | Go CLI entrypoint |
+| `internal/cli/` | Cobra command wiring for `version`, `doctor`, `scan`, and `legacy` |
+| `internal/doctor/` | Read-only prerequisite checks for the Go CLI |
+| `internal/check/` | Future Go-native diagnostic check contract and deterministic registry |
+| `internal/report/` | Structured report types and JSON serialization |
+| `internal/state/` | Snapshot storage helpers for future native scan runs |
+| `internal/legacy/` | Guarded bridge for running retained platform scripts |
+| `internal/output/` | CLI text/JSON envelope and stable error codes |
+| `intruder-hunter.sh` | Linux legacy scan/hardening entrypoint |
+| `intruder-hunter-macos.sh` | macOS legacy scan/hardening entrypoint |
+| `intruder-hunter.ps1` | Windows legacy scan/hardening entrypoint |
+| `lib/linux/`, `lib/macos/`, `lib/windows/` | Platform script modules |
+| `scripts/verify.sh` | Local verification harness |
+| `docs/json-reporting.md` | JSON report and snapshot documentation |
+| `docs/detection-refresh-audit.md` | May 2026 detection refresh audit and backlog |
+
+## Contributing ideas
+
+- [x] Windows script support
+- [x] macOS script support
+- [x] Go CLI foundation for version/doctor/JSON envelopes
+- [x] JSON report model and snapshot helpers
+- [ ] Native Go scan checks
+- [ ] Persisted scan snapshots from the CLI
+- [ ] Better distro-aware Linux package/firewall checks
+- [ ] Context-aware miner, network, persistence, and PUP detections
+- [ ] Scheduled scans via cron/Task Scheduler
 
 ## License
 
-MIT License - Use freely, no warranty.
-
-## Credits
-
-Built with help from [Claude Code](https://claude.ai/code) - Anthropic's AI coding assistant.
+MIT License - use freely, no warranty.
 
 ---
 
