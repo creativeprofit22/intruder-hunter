@@ -7,6 +7,7 @@ readonly ROOT_DIR
 readonly DIST_DIR="${ROOT_DIR}/dist"
 readonly BINARY_NAME="intruder-hunter"
 readonly VERSION_PACKAGE="github.com/creativeprofit22/intruder-hunter/internal/version"
+readonly GO_CMD="${GO:-go}"
 
 VERSION="${VERSION:-$(git -C "$ROOT_DIR" describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)}"
 COMMIT="${COMMIT:-$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
@@ -34,12 +35,12 @@ build_binary() {
     fi
 
     echo "Building ${goos}/${goarch} -> ${output#"${ROOT_DIR}/"}"
-    (cd "$ROOT_DIR" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 go build -trimpath -ldflags "$LDFLAGS" -o "$output" ./cmd/intruder-hunter)
+    (cd "$ROOT_DIR" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 "$GO_CMD" build -trimpath -ldflags "$LDFLAGS" -o "$output" ./cmd/intruder-hunter)
 }
 
 main() {
-    if ! command -v go >/dev/null 2>&1; then
-        echo "go is required to build release binaries" >&2
+    if ! command -v "$GO_CMD" >/dev/null 2>&1; then
+        echo "${GO_CMD} is required to build release binaries" >&2
         return 1
     fi
 

@@ -91,7 +91,7 @@ build-go:
 release: bundle release-go
 
 release-go:
-	$(BASH) scripts/release-go.sh
+	GO="$(GO)" $(BASH) scripts/release-go.sh
 
 bundle:
 	$(BASH) scripts/bundle.sh
