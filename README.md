@@ -164,7 +164,7 @@ The legacy bridge does **not** auto-approve hardening. If a script asks whether 
 |------|-------|-------|---------|
 | Go `version` | Supported | Supported | Supported |
 | Go `doctor` | Supported prerequisite profile | Supported prerequisite profile | Supported prerequisite profile |
-| Go `scan` | Retained-script diagnostic signals covered in native Go | Orchestrator ready; checks still migrating | Orchestrator ready; checks still migrating |
+| Go `scan` | Retained-script diagnostic signals covered in native Go | Retained-script diagnostic signals covered in native Go | Retained-script diagnostic signals covered in native Go |
 | Legacy full scan | Bash script | Bash script | PowerShell script |
 | Best-tested targets | Ubuntu/Debian and WSL2 | macOS 10.15+ | Windows 10/11 and Windows Server 2016+ |
 
