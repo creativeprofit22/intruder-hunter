@@ -44,6 +44,12 @@ func (usersCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.Fin
 	}
 	findings = append(findings, infoFinding(base.findingID("shell_users"), base.moduleName(), "shell_users", "Users with login shells", fmt.Sprintf("Found %d account(s) with common login shells.", len(shellUsers)), shellUsers))
 
+	if emptyPasswords := readNoPasswordUsers("/etc/shadow"); len(emptyPasswords) > 0 {
+		findings = append(findings, finding(base.findingID("empty_passwords"), base.moduleName(), "empty_passwords", report.SeverityWarning, "Users with empty or disabled password hashes", "One or more shadow entries have an empty password field or only the lock marker used by the retained Linux script as a no-password signal.", emptyPasswords, "Lock or set strong passwords for unexpected accounts after confirming they are not intentionally disabled service accounts.", map[string]string{"confidence": "medium"}))
+	} else {
+		findings = append(findings, okFinding(base.findingID("empty_passwords_ok"), base.moduleName(), "empty_passwords", "No empty password entries found", "No readable /etc/shadow entries had an empty password field or lone lock marker.", nil))
+	}
+
 	if sudoUsers := readSudoUsers(); len(sudoUsers) > 0 {
 		findings = append(findings, infoFinding(base.findingID("sudo_users"), base.moduleName(), "sudo_users", "Sudo-capable users", "Users in sudo or wheel groups were found.", sudoUsers))
 	}
@@ -79,6 +85,29 @@ func readPasswdUsers() []passwdUser {
 
 func hasLoginShell(shell string) bool {
 	return strings.HasSuffix(shell, "/bash") || strings.HasSuffix(shell, "/sh") || strings.HasSuffix(shell, "/zsh")
+}
+
+func readNoPasswordUsers(path string) []string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	return parseNoPasswordUsers(string(data))
+}
+
+func parseNoPasswordUsers(data string) []string {
+	var users []string
+	for _, line := range strings.Split(data, "\n") {
+		parts := strings.Split(line, ":")
+		if len(parts) < 2 || strings.TrimSpace(parts[0]) == "" {
+			continue
+		}
+		passwordField := strings.TrimSpace(parts[1])
+		if passwordField == "" || passwordField == "!" {
+			users = append(users, parts[0])
+		}
+	}
+	return users
 }
 
 func readSudoUsers() []string {

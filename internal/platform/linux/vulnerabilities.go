@@ -21,9 +21,10 @@ type updateCount struct {
 
 func (vulnerabilitiesCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.Finding, error) {
 	base := linuxCheck{id: "linux.vulnerabilities.posture", title: "Linux vulnerability posture", category: check.CategoryVulnerabilities}
-	findings := make([]report.Finding, 0, 4)
+	findings := make([]report.Finding, 0, 5)
 	findings = append(findings, updateFinding(ctx, checkCtx, base))
 	findings = append(findings, firewallFinding(ctx, checkCtx, base))
+	findings = append(findings, etcWritableFinding(ctx, checkCtx, base))
 	findings = append(findings, sshConfigFindings(base)...)
 	return findings, nil
 }
@@ -117,6 +118,18 @@ func firewallFinding(ctx context.Context, checkCtx check.Context, base linuxChec
 		return infoFinding(base.findingID("firewall_unknown"), base.moduleName(), "firewall_status", "No supported host firewall status found", "UFW, firewalld, and nftables did not report an active firewall. Cloud or endpoint controls may still apply.", nil)
 	}
 	return finding(base.findingID("firewall_inactive"), base.moduleName(), "firewall_status", report.SeverityWarning, "Host firewall appears inactive", "Supported local firewall tools did not report active filtering.", evidence, "Confirm whether another firewall controls exposure. Enable or configure a host firewall only after allowing required SSH/RDP/app/VPN ports.", map[string]string{"confidence": "medium"})
+}
+
+func etcWritableFinding(ctx context.Context, checkCtx check.Context, base linuxCheck) report.Finding {
+	out, err := commandOutput(ctx, checkCtx, "find", "/etc", "-type", "f", "-perm", "-002", "-print")
+	if err != nil {
+		return commandInfoFinding(base.findingID("etc_world_writable_unavailable"), base.moduleName(), "etc_file_permissions", "find", err)
+	}
+	files := limitLines(compactEvidence(strings.Split(out, "\n")), 25)
+	if len(files) == 0 {
+		return okFinding(base.findingID("etc_world_writable_ok"), base.moduleName(), "etc_file_permissions", "No world-writable files in /etc", "No world-writable regular files were found under /etc.", nil)
+	}
+	return finding(base.findingID("etc_world_writable"), base.moduleName(), "etc_file_permissions", report.SeverityWarning, "World-writable files in /etc", "World-writable configuration files can allow unauthorized local tampering with system or service behavior.", files, "Review each file's owner and permissions; remove world-write bits unless they are explicitly required and safe.", map[string]string{"confidence": "high"})
 }
 
 func sshConfigFindings(base linuxCheck) []report.Finding {

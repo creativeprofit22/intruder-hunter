@@ -15,8 +15,8 @@ Intruder Hunter helps you review a computer for common signs of compromise, risk
 ## Status at a glance
 
 - **Go CLI:** buildable on Linux, macOS, and Windows. It implements `version`, read-only `doctor`, JSON/text output, first-pass `scan` orchestration, and a guarded `legacy` script bridge.
-- **Native Go scan:** the command now runs any registered Go-native checks for the current platform and safely produces an empty report when no checks are registered yet. Full diagnostic parity is **not complete**.
-- **Full diagnostics today:** use the retained Bash/PowerShell scripts directly, or launch them through the Go CLI `legacy` bridge from a repository checkout.
+- **Native Go scan:** the command runs registered Go-native checks for the current platform. Linux retained-script diagnostic signal coverage is complete; macOS and Windows parity work is still in progress.
+- **Full diagnostics today:** on Linux, use the Go-native `scan` for normalized retained-signal coverage; retained Bash/PowerShell scripts remain available directly or through the Go CLI `legacy` bridge from a repository checkout.
 - **Reports:** Go scan output can be text or JSON, can write `--report-json PATH`, and writes private `.intruder-hunter/` snapshots by default unless `--no-snapshot` is set.
 
 ## Install and build
@@ -68,7 +68,7 @@ On Windows, run the `.exe` from PowerShell:
 |---------|------------------|
 | `intruder-hunter version` | Prints the CLI version, commit, OS, and architecture. Supports `--output json`. |
 | `intruder-hunter doctor` | Read-only prerequisite check for platform, admin/root capability, Go runtime/tooling, and platform tools. Supports `--output json`. |
-| `intruder-hunter scan` | Runs registered Go-native checks for the current platform, writes a snapshot by default, and supports `--output`, `--report-json`, `--no-snapshot`, and `--timeout`. Empty reports are expected until platform checks are implemented. |
+| `intruder-hunter scan` | Runs registered Go-native checks for the current platform, writes a snapshot by default, and supports `--output`, `--report-json`, `--no-snapshot`, and `--timeout`. Linux covers retained-script diagnostic signals; macOS and Windows checks are still migrating. |
 | `intruder-hunter legacy linux-script` | Runs `intruder-hunter.sh` on Linux after checking the current platform and root/admin status. |
 | `intruder-hunter legacy macos-script` | Runs `intruder-hunter-macos.sh` on macOS after checking the current platform and root/admin status. |
 | `intruder-hunter legacy windows-script` | Runs `intruder-hunter.ps1` on Windows after checking Administrator status. |
@@ -104,7 +104,7 @@ go run ./cmd/intruder-hunter doctor -o json
 
 ## Full scan fallback with legacy scripts
 
-Until native Go scan checks are complete, use the retained scripts for real host diagnostics.
+Linux retained-script diagnostic signal coverage is available through the Go-native scan. For macOS and Windows parity gaps, or when you need the original script output, use the retained scripts.
 
 ### Linux / WSL2
 
@@ -164,7 +164,7 @@ The legacy bridge does **not** auto-approve hardening. If a script asks whether 
 |------|-------|-------|---------|
 | Go `version` | Supported | Supported | Supported |
 | Go `doctor` | Supported prerequisite profile | Supported prerequisite profile | Supported prerequisite profile |
-| Go `scan` | Orchestrator ready; checks still migrating | Orchestrator ready; checks still migrating | Orchestrator ready; checks still migrating |
+| Go `scan` | Retained-script diagnostic signals covered in native Go | Orchestrator ready; checks still migrating | Orchestrator ready; checks still migrating |
 | Legacy full scan | Bash script | Bash script | PowerShell script |
 | Best-tested targets | Ubuntu/Debian and WSL2 | macOS 10.15+ | Windows 10/11 and Windows Server 2016+ |
 
@@ -391,9 +391,9 @@ Generated files are written to `dist/` and intentionally ignored by git.
 | `cmd/intruder-hunter/` | Go CLI entrypoint |
 | `internal/cli/` | Cobra command wiring for `version`, `doctor`, `scan`, and `legacy` |
 | `internal/doctor/` | Read-only prerequisite checks for the Go CLI |
-| `internal/check/` | Future Go-native diagnostic check contract and deterministic registry |
+| `internal/check/` | Go-native diagnostic check contract and deterministic registry used by `scan` |
 | `internal/report/` | Structured report types and JSON serialization |
-| `internal/state/` | Snapshot storage helpers for future native scan runs |
+| `internal/state/` | Private scan snapshot storage helpers used by the CLI by default |
 | `internal/legacy/` | Guarded bridge for running retained platform scripts |
 | `internal/output/` | CLI text/JSON envelope and stable error codes |
 | `intruder-hunter.sh` | Linux legacy scan/hardening entrypoint |
@@ -410,8 +410,8 @@ Generated files are written to `dist/` and intentionally ignored by git.
 - [x] macOS script support
 - [x] Go CLI foundation for version/doctor/JSON envelopes
 - [x] JSON report model and snapshot helpers
-- [ ] Native Go scan checks
-- [ ] Persisted scan snapshots from the CLI
+- [x] Native Go scan checks for Linux retained-script diagnostic signal coverage
+- [x] Persisted scan snapshots from the CLI
 - [ ] Better distro-aware Linux package/firewall checks
 - [ ] Context-aware miner, network, persistence, and PUP detections
 - [ ] Scheduled scans via cron/Task Scheduler

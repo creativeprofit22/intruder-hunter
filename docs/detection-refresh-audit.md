@@ -14,7 +14,7 @@ This audit reviews the current detection and hardening assumptions in:
 - `lib/windows/*.ps1`
 - the Go CLI/report/check foundation under `cmd/` and `internal/`
 
-This document was refreshed for the May 2026 Go CLI migration. The migration adds a structured CLI/report model, a read-only `doctor` command, a placeholder `scan` command, and a guarded legacy script bridge; it does **not** mean every detection below has been reimplemented in Go yet.
+This document was originally refreshed for the May 2026 Go CLI migration and now includes current scan-status notes. The migration added a structured CLI/report model, a read-only `doctor` command, Go-native `scan` orchestration with registered checks, and a guarded legacy script bridge; it does **not** mean every detection below has been reimplemented in Go yet.
 
 ## Current Go CLI migration status
 
@@ -23,9 +23,9 @@ This document was refreshed for the May 2026 Go CLI migration. The migration add
 | Install/build | Implemented | Build with Go 1.26+ using `go run ./cmd/intruder-hunter ...`, `make build-go`, or `make release-go`. |
 | `version` | Implemented | Supports text and JSON output. |
 | `doctor` | Implemented | Read-only prerequisite profile for Linux, macOS, and Windows. It checks local capability and tool availability, not compromise. |
-| `scan` | Stub only | Returns `IH_SCAN_NOT_IMPLEMENTED`; use retained scripts for full diagnostics today. |
-| JSON envelope | Implemented for Go CLI commands | Uses `schema_version`, `tool`, `platform`, timestamps, `summary`, `findings`, and optional `error`. |
-| Snapshot storage helpers | Implemented as internal support | Intended layout is `.intruder-hunter/runs/<utc-ts>/report.json`, metadata, optional raw artifacts, and `.intruder-hunter/latest/report.json`; current CLI does not write scan snapshots. |
+| `scan` | Implemented with scoped parity | Runs registered Go-native checks for the current platform. Linux retained-script diagnostic signal coverage is complete; macOS and Windows parity work is still migrating. |
+| JSON envelope | Implemented for Go CLI commands | Uses `schema_version`, `tool`, `platform`, timestamps, `summary`, `findings`, and optional `error`; `scan --output json` emits this envelope. |
+| Snapshot storage | Implemented in CLI | Default scan layout is `.intruder-hunter/runs/<utc-ts>/report.json`, metadata, optional raw artifacts, and `.intruder-hunter/latest/report.json`; use `scan --no-snapshot` to disable it. |
 | Legacy fallback | Implemented | `legacy linux-script`, `legacy macos-script`, and `legacy windows-script` check platform/admin status and then run retained scripts without auto-approving hardening prompts. |
 
 ## May 2026 detection model changes
@@ -36,7 +36,7 @@ The Go foundation introduces the model future native detections should follow:
 - Structured findings with stable IDs, platform, module, check name, evidence, remediation, references, and metadata.
 - Deterministic report JSON and private snapshot helpers.
 - A check registry/context contract for platform-specific native checks.
-- Clear separation between prerequisite checks (`doctor`) and real diagnostic checks (`scan`, still pending).
+- Clear separation between prerequisite checks (`doctor`) and diagnostic checks (`scan`, implemented with Linux retained-signal coverage while macOS/Windows parity continues).
 
 The legacy scripts remain useful for triage, but their script-era limitations remain. A warning may be a true issue, a normal setting, or a policy decision; a clean-looking summary is not proof that no attacker is present.
 
