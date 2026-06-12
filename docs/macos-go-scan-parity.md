@@ -1,6 +1,8 @@
 # macOS Go Scan Parity
 
-This is the starting parity matrix for retained macOS Bash diagnostics in `lib/macos/*.sh` versus Go-native checks in `internal/platform/macos/*.go`. It is a planning document only; do not treat macOS retained-script signal parity as complete until the open gaps are implemented and verified.
+This document tracks retained macOS Bash diagnostics in `lib/macos/*.sh` versus Go-native checks in `internal/platform/macos/*.go`.
+
+macOS parity here means retained diagnostic signal coverage, not byte-for-byte output compatibility. The Go scan emits normalized findings with structured severities, evidence, remediation text, and metadata, so several checks are intentionally broader or less noisy than the retained script.
 
 ## Current parity matrix
 
@@ -13,14 +15,14 @@ This is the starting parity matrix for retained macOS Bash diagnostics in `lib/m
 | `lib/macos/network.sh` | Listening services from `lsof -iTCP -sTCP:LISTEN -n -P` | `internal/platform/macos/network.go` | Covered/enhanced | Go emits normalized listener findings and classifies exposed/high-risk services. |
 | `lib/macos/network.sh` | Port 22 exposed warning | `internal/platform/macos/network.go` | Covered | `highRiskService(22)` returns SSH warning when exposed. |
 | `lib/macos/network.sh` | Active established connection count | `internal/platform/macos/network.go` | Covered | Go counts `ESTABLISHED` lines from `netstat -an`. |
-| `lib/macos/network.sh` | Connections to suspicious ports `4444`, `5555`, `6666`, `1337`, `31337` | None yet | Gap | Go currently summarizes established connections but does not flag these retained suspicious-port indicators. |
+| `lib/macos/network.sh` | Connections to suspicious ports `4444`, `5555`, `6666`, `1337`, `31337` | `internal/platform/macos/network.go` | Covered | `suspiciousPortConnections` flags retained suspicious-port indicators from `netstat -an` evidence. |
 | `lib/macos/users.sh` | Users with bash/zsh/sh shell access | `internal/platform/macos/users.go` | Covered | Go parses `dscl . -list /Users UserShell`. |
 | `lib/macos/users.sh` | Admin group members and admin count >2 warning | `internal/platform/macos/users.go` | Covered | Go warns when more than two admin group members are reported. |
 | `lib/macos/users.sh` | SSH authorized key counts under `/Users/*` | `internal/platform/macos/users.go` | Covered | Go counts non-comment keys in `/Users/*/.ssh/authorized_keys`. |
 | `lib/macos/users.sh` | Hidden dot-prefixed local users excluding `.localized` | `internal/platform/macos/users.go` | Covered | Go reports dot-prefixed users from `dscl . -list /Users`. |
 | `lib/macos/malware.sh` | Executable files in `/tmp` and `/private/tmp` excluding common Apple noise | `internal/platform/macos/malware.go` | Covered/enhanced | Go scans both paths and filters Apple, `node_modules`, and `.git` noise. |
-| `lib/macos/malware.sh` | Hidden files in `/tmp` and `/private/tmp` excluding `.DS_Store` | None yet | Gap | Go does not currently emit a hidden temp-file finding for macOS. |
-| `lib/macos/malware.sh` | Third-party LaunchAgents/LaunchDaemons in system and current-user launch locations | `internal/platform/macos/malware.go` | Partially covered/enhanced | Go enumerates system and per-user launch plists and flags suspicious traits; it may not emit info-only evidence for benign third-party launch items that Bash listed. |
+| `lib/macos/malware.sh` | Hidden files in `/tmp` and `/private/tmp` excluding `.DS_Store` | `internal/platform/macos/malware.go` | Covered/enhanced | `hiddenTempFileFindings` reports dot-prefixed temp files and filters `.DS_Store`, development, Apple, `node_modules`, and `.git` noise. |
+| `lib/macos/malware.sh` | Third-party LaunchAgents/LaunchDaemons in system and current-user launch locations | `internal/platform/macos/malware.go` | Covered/intentionally different | Go enumerates system and per-user launch plists and flags suspicious traits. Benign third-party launch items are summarized as reviewed rather than emitted one-by-one to reduce noisy normalized reports. |
 | `lib/macos/malware.sh` | Known malware/adware paths | `internal/platform/macos/malware.go` | Covered | Go checks the retained path list and reports critical findings. |
 | `lib/macos/malware.sh` | User cron jobs, including downloader/interpreter/http patterns | `internal/platform/macos/malware.go` | Covered/enhanced | Go reports cron presence and flags downloader, URL, encoded-command, and temp-path indicators. |
 | `lib/macos/security.sh` | SIP enabled/disabled | `internal/platform/macos/security.go` | Covered | Go uses `csrutil status` and reports critical when disabled. |
@@ -41,17 +43,18 @@ This is the starting parity matrix for retained macOS Bash diagnostics in `lib/m
 | `lib/macos/logs.sh` | Kernel panic reports from last 7 days | `internal/platform/macos/logs.go` | Covered | Go scans `/Library/Logs/DiagnosticReports` for recent `.panic` files. |
 | `lib/macos/logs.sh` | Recent logins via `last -5` | `internal/platform/macos/logs.go` | Covered | Go collects up to five `last` rows. |
 
-## Open gaps before macOS parity completion
+## Intentional differences from the retained script
 
-1. Add Go-native detection for retained suspicious network ports `4444`, `5555`, `6666`, `1337`, and `31337` from `netstat -an` evidence.
-2. Add Go-native hidden temp-file findings for `/tmp` and `/private/tmp`, excluding `.DS_Store` and comparable development noise.
-3. Decide whether benign third-party LaunchAgents/LaunchDaemons should be emitted as info evidence to match the retained script's review list, or document the stricter suspicious-only behavior as intentional.
+- Go checks use normalized findings and richer severities instead of matching Bash output text byte-for-byte.
+- Listener and process checks classify risk with additional context rather than reproducing Bash color output.
+- Benign third-party LaunchAgents/LaunchDaemons are summarized after review; suspicious launch traits still produce dedicated warning or critical findings.
+- Hidden temporary-file and executable checks filter common development, Apple, `node_modules`, and `.git` noise to reduce false positives.
+- Report metadata carries scan timing, so individual checks do not duplicate scan-date output.
 
 ## Verification path
 
-Before marking macOS retained-script diagnostic signal parity complete:
+macOS retained-script diagnostic signal parity is considered complete when:
 
-- Add focused parser/unit tests for any implemented gap that can be tested without host-specific macOS files.
-- Run `go test ./internal/platform/macos`.
-- Run `go test ./...`.
-- Update this matrix and README status language only after all retained macOS diagnostic rows are covered or intentionally documented as different.
+- `go test ./internal/platform/macos` passes.
+- `go test ./...` passes.
+- Every retained macOS diagnostic row above traces to a Go-native finding path or an intentional difference.

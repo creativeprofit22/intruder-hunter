@@ -22,7 +22,10 @@ type windowsListener struct {
 	ServiceNames  string `json:"ServiceNames"`
 }
 
-var highRiskWindowsPorts = map[int]string{135: "RPC endpoint mapper", 139: "NetBIOS", 445: "SMB", 1433: "MSSQL", 3306: "MySQL", 3389: "RDP", 5432: "PostgreSQL", 5900: "VNC", 5901: "VNC", 5902: "VNC", 5903: "VNC", 5985: "WinRM HTTP", 5986: "WinRM HTTPS", 6379: "Redis", 9200: "Elasticsearch", 11211: "Memcached", 27017: "MongoDB"}
+var (
+	highRiskWindowsPorts   = map[int]string{135: "RPC endpoint mapper", 139: "NetBIOS", 445: "SMB", 1433: "MSSQL", 3306: "MySQL", 3389: "RDP", 5432: "PostgreSQL", 5900: "VNC", 5901: "VNC", 5902: "VNC", 5903: "VNC", 5985: "WinRM HTTP", 5986: "WinRM HTTPS", 6379: "Redis", 9200: "Elasticsearch", 11211: "Memcached", 27017: "MongoDB"}
+	suspiciousWindowsPorts = map[int]string{1337: "common backdoor/RAT port", 3389: "RDP retained remote-access review port", 4444: "common reverse shell port", 5555: "common backdoor/RAT port", 6666: "common backdoor/RAT port", 8080: "common proxy/backdoor port", 9999: "common backdoor/RAT port", 31337: "common backdoor/RAT port"}
+)
 
 const listenersScript = `$procs = @{}; Get-CimInstance Win32_Process | ForEach-Object { $procs[[int]$_.ProcessId] = $_ }; $svc = @{}; Get-CimInstance Win32_Service | Where-Object ProcessId -gt 0 | ForEach-Object { $pid = [int]$_.ProcessId; if (-not $svc.ContainsKey($pid)) { $svc[$pid] = @() }; $svc[$pid] += $_.Name }; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | ForEach-Object { $pid = [int]$_.OwningProcess; [pscustomobject]@{ LocalAddress=$_.LocalAddress; LocalPort=[int]$_.LocalPort; OwningProcess=$pid; ProcessName=if($procs.ContainsKey($pid)){$procs[$pid].Name}else{''}; Path=if($procs.ContainsKey($pid)){$procs[$pid].ExecutablePath}else{''}; ServiceNames=if($svc.ContainsKey($pid)){($svc[$pid] -join ',')}else{''} } } | ConvertTo-Json -Compress -Depth 3`
 
@@ -59,10 +62,15 @@ func parseWindowsListeners(output string) ([]windowsListener, error) {
 func assessWindowsListener(listener windowsListener) (report.Severity, string) {
 	public := isPublicWindowsBind(listener.LocalAddress)
 	service, highRisk := highRiskWindowsPorts[listener.LocalPort]
+	suspiciousPort, suspicious := suspiciousWindowsPorts[listener.LocalPort]
 	suspiciousPath := windowsUserWritablePath(listener.Path)
 	switch {
+	case suspicious && suspiciousPath:
+		return report.SeverityCritical, fmt.Sprintf("%s %d owned by process from user-writable path %s", suspiciousPort, listener.LocalPort, listener.Path)
 	case public && highRisk && suspiciousPath:
 		return report.SeverityCritical, fmt.Sprintf("%s exposed on %s with user-writable executable path %s", service, listener.LocalAddress, listener.Path)
+	case suspicious:
+		return report.SeverityWarning, fmt.Sprintf("listener uses retained suspicious port %d (%s)", listener.LocalPort, suspiciousPort)
 	case public && highRisk:
 		return report.SeverityWarning, fmt.Sprintf("%s exposed on %s", service, listener.LocalAddress)
 	case public && suspiciousPath:

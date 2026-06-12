@@ -46,8 +46,20 @@ func TestParseWindowsListenersAndAssessPublicRDP(t *testing.T) {
 	}
 }
 
+func TestAssessWindowsListenerSuspiciousRetainedPort(t *testing.T) {
+	listener := windowsListener{LocalAddress: "127.0.0.1", LocalPort: 4444, OwningProcess: 444, ProcessName: "agent.exe", Path: `C:\Windows\System32\agent.exe`}
+
+	severity, reason := assessWindowsListener(listener)
+	if severity != report.SeverityWarning {
+		t.Fatalf("severity = %q, want warning; reason=%s", severity, reason)
+	}
+	if !strings.Contains(reason, "4444") {
+		t.Fatalf("reason = %q, want suspicious port context", reason)
+	}
+}
+
 func TestParseWindowsDefenderStatus(t *testing.T) {
-	jsonText := `{"AntivirusEnabled":true,"RealTimeProtectionEnabled":false,"AntispywareEnabled":true,"BehaviorMonitorEnabled":true,"IoavProtectionEnabled":true,"NISEnabled":true,"AntivirusSignatureLastUpdated":"2026-05-01T10:00:00","QuickScanAge":9,"FullScanAge":30}`
+	jsonText := `{"AntivirusEnabled":true,"RealTimeProtectionEnabled":false,"AntispywareEnabled":true,"BehaviorMonitorEnabled":true,"IoavProtectionEnabled":true,"NISEnabled":true,"AntivirusSignatureLastUpdated":"2026-05-01T10:00:00","QuickScanAge":9,"FullScanAge":30,"Threats":[{"ThreatName":"Trojan:Win32/Example","IsActive":true}]}`
 	status, err := parseWindowsDefenderStatus(jsonText)
 	if err != nil {
 		t.Fatalf("parseWindowsDefenderStatus() error = %v", err)
@@ -57,6 +69,10 @@ func TestParseWindowsDefenderStatus(t *testing.T) {
 	}
 	if got := defenderEvidence(status); len(got) != 3 {
 		t.Fatalf("len(defenderEvidence) = %d, want 3", len(got))
+	}
+	activeThreats := activeDefenderThreats(status.Threats)
+	if len(activeThreats) != 1 || !strings.Contains(activeThreats[0], "Trojan:Win32/Example") {
+		t.Fatalf("activeThreats = %v, want parsed active threat", activeThreats)
 	}
 }
 
@@ -70,6 +86,14 @@ func TestParsePersistenceTaskUserAndPostureSamples(t *testing.T) {
 		t.Fatalf("persistence severity=%q reasons=%v, want critical with reasons", severity, reasons)
 	}
 
+	pups, err := parseWindowsPUPItems(`[{"Source":"process","Name":"Web Companion.exe","DisplayName":"","Path":"C:\\Program Files\\Web Companion\\WebCompanion.exe","State":"Running"}]`)
+	if err != nil {
+		t.Fatalf("parseWindowsPUPItems() error = %v", err)
+	}
+	if len(pups) != 1 || !strings.Contains(formatWindowsPUPItem(pups[0]), "Web Companion") {
+		t.Fatalf("unexpected PUP parse: %+v", pups)
+	}
+
 	tasks, err := parseWindowsScheduledTasks(`[{"TaskName":"Updater","TaskPath":"\\","State":"Ready","Author":"Unknown","Actions":"powershell.exe -EncodedCommand AAAA","Principal":"SYSTEM"}]`)
 	if err != nil {
 		t.Fatalf("parseWindowsScheduledTasks() error = %v", err)
@@ -77,6 +101,9 @@ func TestParsePersistenceTaskUserAndPostureSamples(t *testing.T) {
 	taskSeverity, _ := assessWindowsScheduledTask(tasks[0])
 	if taskSeverity != report.SeverityWarning {
 		t.Fatalf("task severity = %q, want warning", taskSeverity)
+	}
+	if reviewTasks := retainedReviewScheduledTasks(tasks); len(reviewTasks) != 1 {
+		t.Fatalf("retainedReviewScheduledTasks len = %d, want 1", len(reviewTasks))
 	}
 
 	users, err := parseWindowsUserState(`{"Administrators":["HOST\\Administrator","HOST\\Alice"],"Users":[{"Name":"backup$","Enabled":true,"SID":"S-1-5-21-1","Description":"","LastLogon":""},{"Name":"Guest","Enabled":false,"SID":"S-1-5-21-2","Description":"Built-in","LastLogon":""}]}`)

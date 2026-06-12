@@ -120,6 +120,33 @@ node     101 bob    9u  IPv4  0x01      0t0  TCP 127.0.0.1:3000 (LISTEN)`
 	}
 }
 
+func TestSuspiciousPortConnections(t *testing.T) {
+	input := strings.Join([]string{
+		"tcp4       0      0  192.0.2.10.49152   198.51.100.10.443   ESTABLISHED",
+		"tcp4       0      0  192.0.2.10.49153   198.51.100.20.4444  ESTABLISHED",
+		"udp4       0      0  *.5353              *.*",
+		"tcp4       0      0  192.0.2.10.49154   198.51.100.30.31337 ESTABLISHED",
+	}, "\n")
+
+	matches := suspiciousPortConnections(input)
+	if len(matches) != 2 {
+		t.Fatalf("len = %d (%#v), want 2", len(matches), matches)
+	}
+	if !strings.Contains(matches[0], ".4444") || !strings.Contains(matches[1], ".31337") {
+		t.Fatalf("matches = %#v, want suspicious port rows", matches)
+	}
+}
+
+func TestFilterHiddenTempNoise(t *testing.T) {
+	files := []string{"/tmp/.payload", "/tmp/.DS_Store", "/private/tmp/.gitignore", "/private/tmp/project/.git/config", "/private/tmp/.stage"}
+
+	got := filterHiddenTempNoise(files)
+	want := []string{"/tmp/.payload", "/private/tmp/.stage"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("files = %v, want %v", got, want)
+	}
+}
+
 func TestParseSoftwareUpdateList(t *testing.T) {
 	updates := parseSoftwareUpdateList(`Software Update Tool
 Finding available software

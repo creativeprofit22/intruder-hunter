@@ -24,7 +24,7 @@ type windowsLocalUser struct {
 	LastLogon   string `json:"LastLogon"`
 }
 
-const usersScript = `$admins = @(Get-LocalGroupMember -Group Administrators -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }); $users = @(Get-LocalUser -ErrorAction SilentlyContinue | Select-Object Name,Enabled,SID,Description,LastLogon); [pscustomobject]@{ Administrators=$admins; Users=$users } | ConvertTo-Json -Compress -Depth 4`
+const usersScript = `$admins = @(Get-LocalGroupMember -Group Administrators -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }); if (-not $admins) { $admins = @(Get-LocalGroupMember -Group Administradores -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) }; $users = @(Get-LocalUser -ErrorAction SilentlyContinue | Select-Object Name,Enabled,SID,Description,LastLogon); [pscustomobject]@{ Administrators=$admins; Users=$users } | ConvertTo-Json -Compress -Depth 4`
 
 func (c usersCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.Finding, error) {
 	out, err := powerShellOutput(ctx, checkCtx, usersScript)
@@ -38,6 +38,9 @@ func (c usersCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.F
 	findings := make([]report.Finding, 0, 4)
 	if len(state.Administrators) > 0 {
 		findings = append(findings, infoFinding(c.findingID("administrators"), c.moduleName(), "administrators", "Local administrators collected", "Review local administrator membership for unexpected users or groups.", state.Administrators))
+		if len(state.Administrators) > 2 {
+			findings = append(findings, finding(c.findingID("administrators_many"), c.moduleName(), "administrators", report.SeverityWarning, "Multiple local administrator principals", fmt.Sprintf("Local Administrators membership contains %d principals.", len(state.Administrators)), state.Administrators, "Review each administrator principal and remove unexpected membership only after validating business impact.", nil))
+		}
 	} else {
 		findings = append(findings, finding(c.findingID("administrators_unreadable"), c.moduleName(), "administrators", report.SeverityWarning, "Local administrators could not be listed", "No local administrator members were returned; permissions or platform support may be limiting visibility.", nil, "Run PowerShell as Administrator if local account auditing is required.", nil))
 	}

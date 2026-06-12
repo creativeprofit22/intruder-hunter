@@ -17,9 +17,10 @@ type windowsSystemInfo struct {
 	InstallDate    string `json:"InstallDate"`
 	LastBootUpTime string `json:"LastBootUpTime"`
 	ComputerName   string `json:"ComputerName"`
+	UserName       string `json:"UserName"`
 }
 
-const systemScript = `Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,InstallDate,LastBootUpTime,@{Name='ComputerName';Expression={$_.CSName}} | ConvertTo-Json -Compress -Depth 3`
+const systemScript = `Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,InstallDate,LastBootUpTime,@{Name='ComputerName';Expression={$_.CSName}},@{Name='UserName';Expression={$env:USERNAME}} | ConvertTo-Json -Compress -Depth 3`
 
 func (c systemCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.Finding, error) {
 	out, err := powerShellOutput(ctx, checkCtx, systemScript)
@@ -30,7 +31,7 @@ func (c systemCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.
 	if err != nil {
 		return nil, err
 	}
-	return []report.Finding{infoFinding(c.findingID("os"), c.moduleName(), "system_info", "Windows system information collected", "Operating system version, build, install date, and boot time were collected for scan context.", []string{fmt.Sprintf("computer=%s caption=%s version=%s build=%s install=%s last_boot=%s", info.ComputerName, info.Caption, info.Version, info.BuildNumber, info.InstallDate, info.LastBootUpTime)})}, nil
+	return []report.Finding{infoFinding(c.findingID("os"), c.moduleName(), "system_info", "Windows system information collected", "Operating system version, build, current user, install date, and boot time were collected for scan context.", []string{fmt.Sprintf("computer=%s user=%s caption=%s version=%s build=%s install=%s last_boot=%s", info.ComputerName, info.UserName, info.Caption, info.Version, info.BuildNumber, info.InstallDate, info.LastBootUpTime)})}, nil
 }
 
 func parseWindowsSystemInfo(output string) (windowsSystemInfo, error) {

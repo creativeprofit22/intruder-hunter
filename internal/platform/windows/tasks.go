@@ -44,6 +44,8 @@ func (c tasksCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.F
 	if flagged == 0 {
 		findings = append(findings, okFinding(c.findingID("scheduled_tasks_ok"), c.moduleName(), "scheduled_tasks", "No suspicious scheduled task actions found", "No scheduled task action matched user-writable path, encoded shell, or miner command context.", nil))
 	}
+	reviewTasks := retainedReviewScheduledTasks(tasks)
+	findings = append(findings, infoFinding(c.findingID("scheduled_tasks_non_microsoft"), c.moduleName(), "scheduled_tasks", "Non-Microsoft scheduled task count collected", fmt.Sprintf("Collected %d ready non-Microsoft scheduled task(s) outside the Microsoft task path.", len(reviewTasks)), summarizeWindowsScheduledTasks(reviewTasks, 10)))
 	findings = append(findings, infoFinding(c.findingID("scheduled_tasks_summary"), c.moduleName(), "scheduled_tasks", "Scheduled task inventory collected", fmt.Sprintf("Collected %d scheduled tasks.", len(tasks)), summarizeWindowsScheduledTasks(tasks, 10)))
 	return findings, nil
 }
@@ -80,6 +82,16 @@ func assessWindowsScheduledTask(task windowsScheduledTask) (report.Severity, []s
 	default:
 		return "", nil
 	}
+}
+
+func retainedReviewScheduledTasks(tasks []windowsScheduledTask) []windowsScheduledTask {
+	out := make([]windowsScheduledTask, 0, len(tasks))
+	for _, task := range tasks {
+		if strings.EqualFold(task.State, "Ready") && !strings.Contains(strings.ToLower(task.Author), "microsoft") && !strings.HasPrefix(strings.ToLower(task.TaskPath), `\microsoft`) {
+			out = append(out, task)
+		}
+	}
+	return out
 }
 
 func formatWindowsScheduledTask(task windowsScheduledTask) string {

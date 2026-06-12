@@ -25,21 +25,23 @@ type listenerAssessment struct {
 }
 
 func (c networkCheck) Run(ctx context.Context, checkCtx check.Context) ([]report.Finding, error) {
+	findings := make([]report.Finding, 0, 4)
 	out, err := commandOutput(ctx, checkCtx, "lsof", "-iTCP", "-sTCP:LISTEN", "-n", "-P")
 	if err != nil {
-		return []report.Finding{commandInfoFinding(c.findingID("lsof_unavailable"), c.moduleName(), "listeners", "lsof", err)}, nil
-	}
-	listeners := parseLsofListeners(out)
-	if len(listeners) == 0 {
-		return []report.Finding{okFinding(c.findingID("none"), c.moduleName(), "listeners", "No listening services found", "No TCP listening sockets were reported by lsof.", nil)}, nil
-	}
-	findings := make([]report.Finding, 0, len(listeners)+1)
-	for i, listener := range listeners {
-		assessment := assessListener(listener)
-		findings = append(findings, finding(c.findingID(fmt.Sprintf("listener_%d_%d", listener.Port, i)), c.moduleName(), "listener_risk", assessment.Severity, assessment.Title, assessment.Reason, []string{listener.Raw}, listenerRemediation(listener), map[string]string{"bind": listener.Address, "port": strconv.Itoa(listener.Port), "process": listener.Command, "pid": listener.PID}))
+		findings = append(findings, commandInfoFinding(c.findingID("lsof_unavailable"), c.moduleName(), "listeners", "lsof", err))
+	} else if listeners := parseLsofListeners(out); len(listeners) == 0 {
+		findings = append(findings, okFinding(c.findingID("none"), c.moduleName(), "listeners", "No listening services found", "No TCP listening sockets were reported by lsof.", nil))
+	} else {
+		for i, listener := range listeners {
+			assessment := assessListener(listener)
+			findings = append(findings, finding(c.findingID(fmt.Sprintf("listener_%d_%d", listener.Port, i)), c.moduleName(), "listener_risk", assessment.Severity, assessment.Title, assessment.Reason, []string{listener.Raw}, listenerRemediation(listener), map[string]string{"bind": listener.Address, "port": strconv.Itoa(listener.Port), "process": listener.Command, "pid": listener.PID}))
+		}
 	}
 	if established, err := commandOutput(ctx, checkCtx, "netstat", "-an"); err == nil {
 		findings = append(findings, infoFinding(c.findingID("active_connections"), c.moduleName(), "active_connections", "Active connection summary", fmt.Sprintf("Established TCP connections: %d", strings.Count(established, "ESTABLISHED")), nil))
+		if suspicious := suspiciousPortConnections(established); len(suspicious) > 0 {
+			findings = append(findings, finding(c.findingID("suspicious_ports"), c.moduleName(), "suspicious_connections", report.SeverityWarning, "Connections to known suspicious ports", "One or more active socket rows referenced ports commonly used by backdoors or reverse shells.", limitLines(suspicious, 20), "Validate the remote endpoint and owning process; isolate the host if the connection is unexpected.", map[string]string{"confidence": "medium"}))
+		}
 	}
 	return findings, nil
 }
@@ -113,6 +115,31 @@ func highRiskService(port int) string {
 		return "web/developer service"
 	}
 	return ""
+}
+
+func suspiciousPortConnections(output string) []string {
+	suspiciousPorts := []string{"4444", "5555", "6666", "1337", "31337"}
+	var matches []string
+	for _, line := range compactEvidence(strings.Split(output, "\n")) {
+		fields := strings.Fields(line)
+		for _, field := range fields {
+			if hasSuspiciousPortSuffix(field, suspiciousPorts) {
+				matches = append(matches, line)
+				break
+			}
+		}
+	}
+	return matches
+}
+
+func hasSuspiciousPortSuffix(field string, ports []string) bool {
+	field = strings.TrimRight(field, ",")
+	for _, port := range ports {
+		if strings.HasSuffix(field, ":"+port) || strings.HasSuffix(field, "."+port) {
+			return true
+		}
+	}
+	return false
 }
 
 func listenerRemediation(listener listenerRecord) string {
